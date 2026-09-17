@@ -1,0 +1,41 @@
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Node dependencies
+node_modules
+
+# Logs
+__pycache__/
+*.pyc
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Provider generated output / local project links
+.vercel
+
+# Go build artifacts
+/backend/bin/
+coverage.out
+
+# Flutter build/tool outputs (future cashier app)
+.dart_tool/
+.flutter-plugins-dependencies
+/mobile/cashier/build/
+/mobile/cashier/android/local.properties
+*.jks
+*.keystore

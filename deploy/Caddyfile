@@ -1,0 +1,23 @@
+teraskayumanis.alrizky.id {
+	encode zstd gzip
+	request_body {
+		max_size 64KB
+	}
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+	}
+	# Legacy management routes are not part of this pilot.
+	@legacy path /admin /admin/* /api/admin /api/admin/* /api/orders /api/orders/* /api/menu /api/table
+	respond @legacy "Legacy admin is unavailable in this preview." 404
+	# Bypass Nitro for the WebSocket upgrade; credentials are in first frame only.
+	handle /ws {
+		rewrite * /api/v1/realtime
+		reverse_proxy 127.0.0.1:8080
+	}
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+	# No request access log: avoid recording QR/capability query strings.
+}
