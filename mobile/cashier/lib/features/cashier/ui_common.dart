@@ -1,18 +1,115 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../domain/models.dart';
 import 'cashier_controller.dart';
 
 // All monetary values stay integer Rupiah; no floating-point conversion.
-String rupiah(int amount) => 'Rp $amount';
+String rupiah(int amount) =>
+    'Rp ${amount.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
 String orderStatus(OrderRecord order) {
   if (order.isExpired) return 'Kedaluwarsa';
   if (order.status == 'completed') return 'Selesai';
-  if (order.paymentStatus == 'paid') return 'Lunas';
+  if (order.status == 'cancelled') return 'Dibatalkan';
+  if (order.paymentStatus == 'paid') return 'Lunas • Diproses';
   if (order.reviewedVersion == order.version) {
     return 'Sudah ditinjau • Belum dibayar';
   }
   return 'Perlu ditinjau • Belum dibayar';
+}
+
+// Local display clock only; Go remains the authority for expiry and payment.
+class OrderClock extends StatefulWidget {
+  const OrderClock({super.key, required this.builder});
+  final WidgetBuilder builder;
+  @override
+  State<OrderClock> createState() => _OrderClockState();
+}
+
+class _OrderClockState extends State<OrderClock> with WidgetsBindingObserver {
+  Timer? _timer;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _schedule(WidgetsBinding.instance.lifecycleState);
+  }
+
+  void _schedule(AppLifecycleState? state) {
+    _timer?.cancel();
+    if (state == null || state == AppLifecycleState.resumed) {
+      _timer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => setState(() {}),
+      );
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _schedule(state);
+    if (state == AppLifecycleState.resumed) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context);
+}
+
+class PaymentCountdown extends StatelessWidget {
+  const PaymentCountdown({super.key, required this.order});
+  final OrderRecord order;
+  @override
+  Widget build(BuildContext context) {
+    if (order.status != 'pending' || order.paymentStatus != 'unpaid') {
+      return const SizedBox.shrink();
+    }
+    final milliseconds = order.expiresAt
+        .difference(DateTime.now())
+        .inMilliseconds;
+    final seconds = milliseconds <= 0 ? 0 : (milliseconds + 999) ~/ 1000;
+    final time =
+        '${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
+    final urgent = seconds <= 120;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: urgent ? const Color(0xffffeeee) : const Color(0xfff7f1ea),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.timer_outlined,
+            color: urgent ? const Color(0xffa32020) : const Color(0xff573a29),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              seconds == 0 ? 'Waktu pembayaran habis' : 'Sisa waktu bayar',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          Text(
+            time,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: urgent ? const Color(0xffa32020) : const Color(0xff573a29),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 Future<bool> confirmAction(

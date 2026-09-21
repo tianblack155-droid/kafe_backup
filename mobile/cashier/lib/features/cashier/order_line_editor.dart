@@ -80,8 +80,7 @@ class _OrderLineEditorState extends State<OrderLineEditor> {
                 ),
               ],
             ),
-            if (product != null)
-              Text('Harga dasar katalog: ${rupiah(product.price)}'),
+            if (product != null) Text('Harga dasar: ${rupiah(product.price)}'),
             if (product == null || !product.available)
               const Text('Tidak tersedia. Hapus atau ganti produk ini.'),
             Row(
@@ -101,7 +100,7 @@ class _OrderLineEditorState extends State<OrderLineEditor> {
                 IconButton(
                   key: ValueKey('qty-plus-$index'),
                   tooltip: 'Tambah jumlah',
-                  onPressed: disabled
+                  onPressed: disabled || line.quantity >= 50
                       ? null
                       : () => widget.onChanged(
                           line.copyWith(quantity: line.quantity + 1),
@@ -111,7 +110,7 @@ class _OrderLineEditorState extends State<OrderLineEditor> {
               ],
             ),
             if (product != null && product.variants.isNotEmpty)
-              const Text('Varian • Pilih maksimal satu per kelompok'),
+              const Text('Varian • Wajib pilih satu per kelompok tersedia'),
             if (product != null)
               Wrap(
                 spacing: 8,
@@ -181,6 +180,7 @@ class _OrderLineEditorState extends State<OrderLineEditor> {
               enabled: !disabled,
               minLines: 1,
               maxLines: 3,
+              maxLength: 200,
               decoration: const InputDecoration(labelText: 'Catatan produk'),
               onChanged: (value) =>
                   widget.onChanged(widget.line.copyWith(notes: value)),

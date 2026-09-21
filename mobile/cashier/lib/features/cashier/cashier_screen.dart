@@ -173,31 +173,46 @@ class _CashierScreenState extends State<CashierScreen> {
                           textAlign: TextAlign.center,
                         ),
                       ),
-                    for (final order in c.orders)
-                      Card(
-                        child: ListTile(
-                          key: ValueKey('order-${order.id}'),
-                          isThreeLine: true,
-                          title: Text(
-                            order.orderNumber,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            '${order.customerName.isEmpty ? 'Tanpa nama' : order.customerName}\n${orderStatus(order)} • ${rupiah(order.total)}',
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: c.busy
-                              ? null
-                              : () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => OrderDetailScreen(
-                                      controller: c,
-                                      order: order,
-                                    ),
+                    OrderClock(
+                      builder: (context) => Column(
+                        children: [
+                          for (final order in c.orders)
+                            Card(
+                              child: ListTile(
+                                key: ValueKey('order-${order.id}'),
+                                title: Text(
+                                  order.orderNumber,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                        ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (order.customerName.isNotEmpty)
+                                      Text(order.customerName),
+                                    Text(
+                                      '${orderStatus(order)} • ${rupiah(order.total)}',
+                                    ),
+                                    PaymentCountdown(order: order),
+                                  ],
+                                ),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: c.busy
+                                    ? null
+                                    : () => Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => OrderDetailScreen(
+                                            controller: c,
+                                            order: order,
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                            ),
+                        ],
                       ),
+                    ),
                     const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

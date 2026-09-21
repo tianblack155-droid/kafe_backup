@@ -106,6 +106,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       action: 'Uang sudah diterima',
     );
     if (!yes || !mounted || !widget.controller.signedIn) return;
+    if (!snapshot.canPay(DateTime.now()) ||
+        _order.version != snapshot.version) {
+      setState(
+        () => _error = 'Pesanan berubah atau waktu habis. Muat ulang sebelum menerima uang.',
+      );
+      return;
+    }
     await _run(() async {
       final result = await widget.controller.pay(snapshot, received);
       if (mounted && result != null) setState(() => _order = result);
@@ -131,64 +138,44 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
-    builder: (context, _) {
-      final c = widget.controller;
-      if (!c.signedIn) return const Scaffold(body: SizedBox.shrink());
-      // Keep cash controller and route state; only replace the server snapshot.
-      for (final current in c.orders) {
-        if (current.id == _order.id &&
-            current.version >= _order.version &&
-            !(_order.paymentStatus == 'paid' &&
-                current.paymentStatus != 'paid') &&
-            !(_order.status == 'completed' && current.status != 'completed')) {
-          _order = current;
+  Widget build(BuildContext context) => OrderClock(
+    builder: (context) => ListenableBuilder(
+      listenable: widget.controller,
+      builder: (context, _) {
+        final c = widget.controller;
+        if (!c.signedIn) return const Scaffold(body: SizedBox.shrink());
+        // Keep cash controller and route state; only replace the server snapshot.
+        for (final current in c.orders) {
+          if (current.id == _order.id &&
+              current.version >= _order.version &&
+              !(_order.paymentStatus == 'paid' &&
+                  current.paymentStatus != 'paid') &&
+              !(_order.status == 'completed' &&
+                  current.status != 'completed')) {
+            _order = current;
+          }
         }
-      }
-      final disabled = c.busy || _working || _confirming;
-      final pendingCash = c.pendingCashFor(_order.id);
-      final canReview = pendingCash == null && _order.canReview(DateTime.now());
-      final canPay = pendingCash == null && _order.canPay(DateTime.now());
-      return Scaffold(
-        appBar: AppBar(title: Text(_order.orderNumber)),
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              if (c.busy || _working) const LinearProgressIndicator(),
-              Text(
-                _order.customerName.isEmpty
-                    ? 'Tanpa nama pelanggan'
-                    : _order.customerName,
-                style: Theme.of(context).textTheme.headlineSmall,
+        final disabled = c.busy || _working || _confirming;
+        final pendingCash = c.pendingCashFor(_order.id);
+        final canReview =
+            pendingCash == null && _order.canReview(DateTime.now());
+        final canPay = pendingCash == null && _order.canPay(DateTime.now());
+        return Scaffold(
+          appBar: AppBar(
+            title: Text('Pesanan ${_order.orderNumber}'),
+            actions: [
+              IconButton(
+                tooltip: 'Muat ulang pesanan',
+                onPressed: disabled ? null : () => _run(c.refresh),
+                icon: const Icon(Icons.refresh),
               ),
-              Text(orderStatus(_order)),
-              Text('Batas pembayaran: ${_order.expiresAt.toLocal()}'),
-              Text(
-                'Versi ${_order.version} • Ditinjau: ${_order.reviewedVersion ?? 'belum'}',
-              ),
-              PendingRecovery(controller: c),
-              if (pendingCash != null) ...[
-                Text(
-                  'Konfirmasi tunai belum pasti: ${rupiah(pendingCash.received)}, versi ${pendingCash.version}. Jangan meminta uang lagi.',
-                ),
-                OutlinedButton(
-                  onPressed: disabled
-                      ? null
-                      : () => _run(() async {
-                          final result = await c.retryCash(_order);
-                          if (mounted && result != null) {
-                            setState(() => _order = result);
-                          }
-                        }),
-                  child: const Text('Cek ulang konfirmasi tunai yang sama'),
-                ),
-              ],
-              if (_error ?? c.error case final String error)
-                ErrorNotice(message: error),
-              const SizedBox(height: 16),
-              for (final line in _order.items)
+            ],
+          ),
+          body: SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                if (c.busy || _working) const LinearProgressIndicator(),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -196,98 +183,196 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${line.quantity} × ${line.name}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          _order.orderNumber,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
+                        if (_order.customerName.isNotEmpty)
+                          Text(_order.customerName),
+                        const SizedBox(height: 8),
                         Text(
-                          '${rupiah(line.unitPrice)} / item • ${rupiah(line.subtotal)}',
+                          orderStatus(_order),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        if (line.variantName.isNotEmpty)
-                          Text('Varian: ${line.variantName}'),
-                        if (line.addonNames.isNotEmpty)
-                          Text('Tambahan: ${line.addonNames.join(', ')}'),
-                        if (line.notes.isNotEmpty)
-                          Text('Catatan: ${line.notes}'),
+                        PaymentCountdown(order: _order),
+                        if (_order.status == 'pending' &&
+                            _order.paymentStatus == 'unpaid')
+                          const Text(
+                            'Revisi tidak memperpanjang waktu pembayaran.',
+                          ),
+                        if (_order.canComplete)
+                          const Text(
+                            'Tandai selesai setelah seluruh item diantar.',
+                          ),
                       ],
                     ),
                   ),
                 ),
-              const SizedBox(height: 16),
-              Text(
-                'Total server: ${rupiah(_order.total)}',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              if (canReview)
-                OutlinedButton.icon(
-                  key: const ValueKey('open-review'),
-                  onPressed: disabled ? null : () => _edit(),
-                  icon: const Icon(Icons.edit_note),
-                  label: const Text('Tinjau & edit pesanan'),
-                ),
-              if (!canPay && canReview)
-                const Text(
-                  'Tinjau dan simpan pesanan terlebih dahulu sebelum menerima tunai.',
-                ),
-              if (canPay)
-                Form(
-                  key: _form,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        key: const ValueKey('cash-received'),
-                        controller: _cash,
-                        enabled: !disabled,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(16),
+                PendingRecovery(controller: c),
+                if (pendingCash != null) ...[
+                  Text(
+                    'Konfirmasi tunai belum pasti: ${rupiah(pendingCash.received)}, versi ${pendingCash.version}. Jangan meminta uang lagi.',
+                  ),
+                  OutlinedButton(
+                    onPressed: disabled
+                        ? null
+                        : () => _run(() async {
+                            final result = await c.retryCash(_order);
+                            if (mounted && result != null) {
+                              setState(() => _order = result);
+                            }
+                          }),
+                    child: const Text('Cek ulang konfirmasi tunai yang sama'),
+                  ),
+                ],
+                if (_error ?? c.error case final String error)
+                  ErrorNotice(message: error),
+                const SizedBox(height: 16),
+                for (final line in _order.items)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${line.quantity} × ${line.name}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            '${rupiah(line.unitPrice)} / item • ${rupiah(line.subtotal)}',
+                          ),
+                          if (line.variantName.isNotEmpty)
+                            Text('Varian: ${line.variantName}'),
+                          if (line.addonNames.isNotEmpty)
+                            Text('Tambahan: ${line.addonNames.join(', ')}'),
+                          if (line.notes.isNotEmpty)
+                            Text('Catatan: ${line.notes}'),
                         ],
-                        decoration: const InputDecoration(
-                          labelText: 'Uang diterima (Rp)',
-                          helperText: 'Rupiah bulat tanpa titik atau koma, contoh 30000',
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: 20,
+                      runSpacing: 8,
+                      children: [
+                        const Text('Total pesanan'),
+                        Text(
+                          rupiah(_order.total),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
-                        validator: (value) {
-                          final amount = int.tryParse(value ?? '');
-                          return amount == null || amount < _order.total
-                              ? 'Uang diterima minimal ${rupiah(_order.total)}'
-                              : null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        key: const ValueKey('cash-submit'),
-                        onPressed: disabled ? null : _pay,
-                        child: const Text('Periksa pembayaran tunai'),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              if (_order.canComplete)
-                FilledButton(
-                  key: const ValueKey('complete-order'),
-                  onPressed: disabled ? null : _complete,
-                  child: const Text('Selesaikan pesanan'),
-                ),
-              if (_order.isExpired)
-                FilledButton.icon(
-                  key: const ValueKey('reorder-order'),
-                  onPressed: disabled || c.hasPendingAttempt
-                      ? null
-                      : () => _edit(reorder: true),
-                  icon: const Icon(Icons.replay),
-                  label: const Text('Buat draf pesanan ulang'),
-                ),
-              if (_order.isExpired)
-                const Text(
-                  'Pesanan lama tetap kedaluwarsa. Pesanan baru hanya dibuat setelah konfirmasi draf.',
-                ),
-            ],
+                const SizedBox(height: 16),
+                if (canReview)
+                  OutlinedButton.icon(
+                    key: const ValueKey('open-review'),
+                    onPressed: disabled ? null : () => _edit(),
+                    icon: const Icon(Icons.edit_note),
+                    label: const Text('Cek menu / revisi sebelum bayar'),
+                  ),
+                if (!canPay && canReview)
+                  const Text(
+                    'Tinjau dan simpan pesanan terlebih dahulu sebelum menerima tunai.',
+                  ),
+                if (canPay)
+                  Form(
+                    key: _form,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 16),
+                        Text(
+                          'Menu sudah diperiksa. Total yang disepakati: ${rupiah(_order.total)}',
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          key: const ValueKey('cash-received'),
+                          controller: _cash,
+                          enabled: !disabled,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(16),
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'Uang diterima (Rp)',
+                            helperText:
+                                'Masukkan nominal tanpa titik atau koma.',
+                          ),
+                          validator: (value) {
+                            final amount = int.tryParse(value ?? '');
+                            if (amount != null && amount > 1000000000000) {
+                              return 'Nominal melebihi batas pembayaran.';
+                            }
+                            return amount == null || amount < _order.total
+                                ? 'Uang diterima minimal ${rupiah(_order.total)}'
+                                : null;
+                          },
+                        ),
+                        ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _cash,
+                          builder: (context, value, _) {
+                            final amount = int.tryParse(value.text);
+                            final change = amount == null
+                                ? null
+                                : amount - _order.total;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Text(
+                                change == null
+                                    ? 'Kembalian: —'
+                                    : change < 0
+                                    ? 'Uang kurang: ${rupiah(-change)}'
+                                    : 'Kembalian: ${rupiah(change)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          key: const ValueKey('cash-submit'),
+                          onPressed: disabled ? null : _pay,
+                          child: const Text('Konfirmasi tunai lunas'),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_order.canComplete)
+                  FilledButton(
+                    key: const ValueKey('complete-order'),
+                    onPressed: disabled ? null : _complete,
+                    child: const Text('Semua item sudah diantar — Selesai'),
+                  ),
+                if (_order.isExpired)
+                  FilledButton.icon(
+                    key: const ValueKey('reorder-order'),
+                    onPressed: disabled || c.hasPendingAttempt
+                        ? null
+                        : () => _edit(reorder: true),
+                    icon: const Icon(Icons.replay),
+                    label: const Text('Buat draf pesanan ulang'),
+                  ),
+                if (_order.isExpired)
+                  const Text(
+                    'Pesanan lama tetap kedaluwarsa. Pesanan baru hanya dibuat setelah konfirmasi draf.',
+                  ),
+              ],
+            ),
           ),
-        ),
-      );
-    },
+        );
+      },
+    ),
   );
 }

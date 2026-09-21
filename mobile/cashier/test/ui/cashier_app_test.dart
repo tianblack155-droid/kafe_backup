@@ -203,7 +203,9 @@ class FakeController extends ChangeNotifier implements CashierController {
   @override
   Future<ReorderDraft> prepareReorder(OrderRecord record) async => ReorderDraft(
     customerName: 'Sari',
-    items: [OrderDraftLine(productId: 'coffee')],
+    items: [
+      OrderDraftLine(productId: 'coffee', variantIds: ['hot']),
+    ],
   );
   @override
   Future<OrderRecord?> submitReorder(ReorderDraft draft) async {
