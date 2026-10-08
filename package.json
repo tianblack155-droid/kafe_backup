@@ -1,0 +1,18 @@
+{
+  "name": "teraskayumanis-monorepo",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend",
+    "dev:backend": "node --env-file=backend/.env scripts/dev-backend.mjs",
+    "build": "npm run build --workspace=frontend",
+    "typecheck": "npm run typecheck --workspace=frontend",
+    "test:structure": "node --test scripts/structure.test.mjs scripts/deployment.test.mjs scripts/cash-ui.test.mjs scripts/order-flow.test.mjs scripts/order-ui.test.mjs scripts/checkout-regressions.test.mjs scripts/realtime-controller.test.mjs scripts/realtime-pages.test.mjs scripts/shared-qr.test.mjs scripts/customer-design.test.mjs scripts/product-selection.test.mjs scripts/menu-race.test.mjs scripts/customer-polish.test.mjs scripts/customer-colors.test.mjs scripts/restaurant-hours.test.mjs",
+    "build:vercel": "node scripts/build-vercel.mjs"
+  }
+}

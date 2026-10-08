@@ -1,0 +1,22 @@
+# Foundation only. This is not the order/payment backend yet.
+# Free plan, explicit opt-in manual deploy until business migration is tested.
+services:
+  - type: web
+    name: teraskayumanis-api
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 8080
+      - key: DATABASE_URL
+        sync: false

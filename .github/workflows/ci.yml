@@ -1,0 +1,57 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run test:structure
+      - run: python3 -m unittest deploy.test_render_env
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run build:vercel
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: teraskayumanis_test
+          POSTGRES_USER: test_runner
+          POSTGRES_PASSWORD: local_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_runner -d teraskayumanis_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://test_runner:local_ci_only@localhost:5432/teraskayumanis_test?sslmode=disable
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f migrations/0001_cash_only.sql
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f migrations/0002_order_review_expiry.sql
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f migrations/0003_runtime_role.sql
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/runtime_role.sql
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f migrations/0004_realtime_publication.sql
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/realtime.sql
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/shared_qr_migration.sql
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f migrations/0005_shared_qr_checkout.sql
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/cash_lifecycle.sql
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/order_flow.sql
+      - run: go test -race ./...
+      - run: go vet ./...
+      - run: go build -o bin/server ./cmd/server
