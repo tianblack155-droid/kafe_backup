@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_theme.dart';
 import '../cashier/cashier_controller.dart';
+import '../cashier/ui_common.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.controller, this.startupError});
@@ -55,92 +57,144 @@ class _LoginScreenState extends State<LoginScreen> {
         _submitting || widget.controller.busy || widget.controller.loading;
     final error = _error ?? widget.controller.error ?? widget.startupError;
     return Scaffold(
+      backgroundColor: AppColors.backgroundAlt,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Form(
-                key: _form,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Icon(Icons.local_cafe, size: 56),
-                    const SizedBox(height: 16),
-                    Text(
-                      'TerasKayuManis',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                    const Text(
-                      'Kasir • Pembayaran tunai',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    TextFormField(
-                      key: const ValueKey('login-email'),
-                      controller: _email,
-                      enabled: !disabled,
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.username],
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Email staf',
-                      ),
-                      validator: (value) =>
-                          value == null ||
-                              !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
-                                  .hasMatch(value.trim())
-                          ? 'Masukkan email yang valid'
-                          : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      key: const ValueKey('login-password'),
-                      controller: _password,
-                      enabled: !disabled,
-                      obscureText: _obscure,
-                      autofillHints: const [AutofillHints.password],
-                      onFieldSubmitted: (_) => _login(),
-                      decoration: InputDecoration(
-                        labelText: 'Kata sandi',
-                        suffixIcon: IconButton(
-                          tooltip: _obscure
-                              ? 'Tampilkan kata sandi'
-                              : 'Sembunyikan kata sandi',
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                          icon: Icon(
-                            _obscure ? Icons.visibility : Icons.visibility_off,
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: SectionCard(
+                padding: const EdgeInsets.all(AppSpacing.xxl),
+                child: Form(
+                  key: _form,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.local_cafe,
+                              color: Colors.white,
+                              size: 26,
+                            ),
                           ),
+                          const SizedBox(width: AppSpacing.md),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'TerasKayuManis',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.2,
+                                  ),
+                                ),
+                                Text(
+                                  'Kasir • Pembayaran tunai',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      const Text(
+                        'Masuk untuk mulai menerima pembayaran.',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
                         ),
                       ),
-                      validator: (value) => value == null || value.isEmpty
-                          ? 'Masukkan kata sandi'
-                          : null,
-                    ),
-                    if (error != null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: Text(
-                          error,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
+                      const SizedBox(height: AppSpacing.xl),
+                      TextFormField(
+                        key: const ValueKey('login-email'),
+                        controller: _email,
+                        enabled: !disabled,
+                        keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [AutofillHints.username],
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Email staf',
+                          hintText: 'nama@contoh.com',
+                          prefixIcon: Icon(Icons.mail_outline),
+                        ),
+                        validator: (value) =>
+                            value == null ||
+                                !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+                                    .hasMatch(value.trim())
+                            ? 'Masukkan email yang valid'
+                            : null,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      TextFormField(
+                        key: const ValueKey('login-password'),
+                        controller: _password,
+                        enabled: !disabled,
+                        obscureText: _obscure,
+                        autofillHints: const [AutofillHints.password],
+                        onFieldSubmitted: (_) => _login(),
+                        decoration: InputDecoration(
+                          labelText: 'Kata sandi',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            tooltip: _obscure
+                                ? 'Tampilkan kata sandi'
+                                : 'Sembunyikan kata sandi',
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
+                            icon: Icon(
+                              _obscure
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                            ),
                           ),
                         ),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Masukkan kata sandi'
+                            : null,
                       ),
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      key: const ValueKey('login-submit'),
-                      onPressed: disabled ? null : _login,
-                      child: Text(disabled ? 'Memeriksa sesi…' : 'Masuk'),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Hanya untuk staf berwenang. Pesanan dimuat setelah masuk.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                      if (error != null) ...[
+                        const SizedBox(height: AppSpacing.lg),
+                        ErrorNotice(message: error),
+                      ],
+                      const SizedBox(height: AppSpacing.xl),
+                      FilledButton(
+                        key: const ValueKey('login-submit'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                        onPressed: disabled ? null : _login,
+                        child: Text(disabled ? 'Memeriksa sesi…' : 'Masuk'),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      const Text(
+                        'Hanya untuk staf berwenang. Pesanan dimuat setelah masuk.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

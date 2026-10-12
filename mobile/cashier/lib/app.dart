@@ -3,13 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'core/app_theme.dart';
 import 'features/auth/login_screen.dart';
 import 'features/cashier/cashier_controller.dart';
 import 'features/cashier/cashier_screen.dart';
 
 class CashierApp extends StatefulWidget {
-  const CashierApp({super.key, required this.controller});
+  const CashierApp({super.key, required this.controller, this.demo = false});
   final CashierController controller;
+  final bool demo;
 
   @override
   State<CashierApp> createState() => _CashierAppState();
@@ -100,18 +102,7 @@ class _CashierAppState extends State<CashierApp> with WidgetsBindingObserver {
     debugShowCheckedModeBanner: false,
     navigatorKey: _navigator,
     scaffoldMessengerKey: _messenger,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xff785138),
-        surface: const Color(0xfffff8ee),
-      ),
-      scaffoldBackgroundColor: const Color(0xfffff8ee),
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
-      ),
-      cardTheme: const CardThemeData(margin: EdgeInsets.symmetric(vertical: 6)),
-    ),
+    theme: buildAppTheme(),
     home: ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) => widget.controller.signedIn
@@ -119,6 +110,7 @@ class _CashierAppState extends State<CashierApp> with WidgetsBindingObserver {
               controller: widget.controller,
               sound: _sound,
               onSoundChanged: (value) => setState(() => _sound = value),
+              demo: widget.demo,
             )
           : LoginScreen(
               controller: widget.controller,

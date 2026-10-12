@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_theme.dart';
 import '../../domain/models.dart';
 import 'ui_common.dart';
 
@@ -57,64 +58,160 @@ class _OrderLineEditorState extends State<OrderLineEditor> {
     final product = widget.product;
     final disabled = widget.disabled;
     final index = widget.index;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    product?.name ??
-                        'Produk tidak ditemukan (${line.productId})',
-                    style: Theme.of(context).textTheme.titleMedium,
+    return SectionCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.neutralSurface,
+                  borderRadius: BorderRadius.circular(AppRadius.badge),
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                IconButton(
-                  key: ValueKey('remove-line-$index'),
-                  tooltip: 'Hapus produk',
-                  onPressed: disabled ? null : widget.onRemove,
-                  icon: const Icon(Icons.delete_outline),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product?.name ??
+                          'Produk tidak ditemukan (${line.productId})',
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                      ),
+                    ),
+                    if (product != null)
+                      Text(
+                        'Harga dasar katalog: ${rupiah(product.price)}',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                  ],
                 ),
-              ],
+              ),
+              IconButton(
+                key: ValueKey('remove-line-$index'),
+                tooltip: 'Hapus produk',
+                onPressed: disabled ? null : widget.onRemove,
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.errorText,
+                ),
+              ),
+            ],
+          ),
+          if (product == null || !product.available)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: InfoBanner.warning(
+                'Tidak tersedia. Hapus atau ganti produk ini.',
+              ),
             ),
-            if (product != null)
-              Text('Harga dasar katalog: ${rupiah(product.price)}'),
-            if (product == null || !product.available)
-              const Text('Tidak tersedia. Hapus atau ganti produk ini.'),
-            Row(
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundAlt,
+              borderRadius: BorderRadius.circular(AppRadius.badge),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
               children: [
-                const Text('Jumlah'),
-                IconButton(
-                  key: ValueKey('qty-minus-$index'),
-                  tooltip: 'Kurangi jumlah',
-                  onPressed: disabled || line.quantity <= 1
-                      ? null
-                      : () => widget.onChanged(
-                          line.copyWith(quantity: line.quantity - 1),
-                        ),
-                  icon: const Icon(Icons.remove_circle_outline),
+                const Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(left: AppSpacing.xs),
+                    child: Text(
+                      'Jumlah',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
-                Text('${line.quantity}', key: ValueKey('qty-value-$index')),
-                IconButton(
-                  key: ValueKey('qty-plus-$index'),
-                  tooltip: 'Tambah jumlah',
-                  onPressed: disabled
-                      ? null
-                      : () => widget.onChanged(
-                          line.copyWith(quantity: line.quantity + 1),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      key: ValueKey('qty-minus-$index'),
+                      tooltip: 'Kurangi jumlah',
+                      onPressed: disabled || line.quantity <= 1
+                          ? null
+                          : () => widget.onChanged(
+                              line.copyWith(quantity: line.quantity - 1),
+                            ),
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                    SizedBox(
+                      width: 36,
+                      child: Text(
+                        '${line.quantity}',
+                        key: ValueKey('qty-value-$index'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                         ),
-                  icon: const Icon(Icons.add_circle_outline),
+                      ),
+                    ),
+                    IconButton(
+                      key: ValueKey('qty-plus-$index'),
+                      tooltip: 'Tambah jumlah',
+                      onPressed: disabled
+                          ? null
+                          : () => widget.onChanged(
+                              line.copyWith(quantity: line.quantity + 1),
+                            ),
+                      icon: const Icon(Icons.add_circle_outline),
+                    ),
+                  ],
                 ),
               ],
             ),
-            if (product != null && product.variants.isNotEmpty)
-              const Text('Varian • Pilih maksimal satu per kelompok'),
-            if (product != null)
-              Wrap(
-                spacing: 8,
+          ),
+          if (product != null && product.variants.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            const Text(
+              'Varian • Pilih maksimal satu per kelompok',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (product != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
                 children: [
                   for (final variant in product.variants)
                     FilterChip(
@@ -145,11 +242,24 @@ class _OrderLineEditorState extends State<OrderLineEditor> {
                     ),
                 ],
               ),
-            if (product != null && product.addons.isNotEmpty)
-              const Text('Tambahan'),
-            if (product != null)
-              Wrap(
-                spacing: 8,
+            ),
+          if (product != null && product.addons.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            const Text(
+              'Tambahan',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (product != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
                 children: [
                   for (final addon in product.addons)
                     FilterChip(
@@ -174,19 +284,22 @@ class _OrderLineEditorState extends State<OrderLineEditor> {
                     ),
                 ],
               ),
-            const SizedBox(height: 12),
-            TextFormField(
-              key: ValueKey('notes-$index'),
-              controller: _notes,
-              enabled: !disabled,
-              minLines: 1,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Catatan produk'),
-              onChanged: (value) =>
-                  widget.onChanged(widget.line.copyWith(notes: value)),
             ),
-          ],
-        ),
+          const SizedBox(height: AppSpacing.lg),
+          TextFormField(
+            key: ValueKey('notes-$index'),
+            controller: _notes,
+            enabled: !disabled,
+            minLines: 1,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Catatan produk',
+              hintText: 'Contoh: tanpa gula, es sedikit',
+            ),
+            onChanged: (value) =>
+                widget.onChanged(widget.line.copyWith(notes: value)),
+          ),
+        ],
       ),
     );
   }

@@ -13,6 +13,9 @@ class OrderRecord {
       reviewedVersion = json['reviewed_version'] as int?,
       total = json['total'] as int,
       expiresAt = DateTime.parse(json['expires_at'] as String),
+      createdAt = json['created_at'] == null
+          ? null
+          : DateTime.parse(json['created_at'] as String),
       items = List.unmodifiable(
         (json['order_items'] as List? ?? []).map(
           (v) => OrderLine.fromJson(Map<String, dynamic>.from(v as Map)),
@@ -22,6 +25,7 @@ class OrderRecord {
   final int version, total;
   final int? reviewedVersion;
   final DateTime expiresAt;
+  final DateTime? createdAt;
   final List<OrderLine> items;
   bool canReview(DateTime now) =>
       status == 'pending' &&
@@ -49,10 +53,17 @@ class OrderLine {
       addonIds = List.unmodifiable(
         (json['addon_ids'] as List? ?? []).cast<String>(),
       ),
+      variantName = json['variant_name'] as String? ?? '',
+      addonNames = List.unmodifiable(
+        (json['order_item_addons'] as List? ?? [])
+            .map((v) => Map<String, dynamic>.from(v as Map))
+            .map((v) => v['addon_name'] as String? ?? '')
+            .where((name) => name.isNotEmpty),
+      ),
       notes = json['notes'] as String? ?? '';
-  final String productId, name, notes;
+  final String productId, name, notes, variantName;
   final int quantity, unitPrice, subtotal;
-  final List<String> variantIds, addonIds;
+  final List<String> variantIds, addonIds, addonNames;
   OrderDraftLine toDraft() => OrderDraftLine(
     productId: productId,
     quantity: quantity,
